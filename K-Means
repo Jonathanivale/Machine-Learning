@@ -1,0 +1,30 @@
+from sklearn import datasets                #importa o módulo datasets do scikit-learn, que fornece acesso a diversos conjuntos de dados incorporados no pacote.
+import matplotlib.pyplot as plt             #A biblioteca Matplotlib é amplamente utilizada para criar gráficos e visualizações em Python.com interface do pyplot
+from sklearn.cluster import KMeans          #Importa a classe KMeans do módulo sklearn.cluster do scikit-learn. A classe KMeans é uma implementação do algoritmo K-Means, um método popular de agrupamento em aprendizado de máquina não supervisionado.
+from sklearn.decomposition import PCA       # do scikit-learn. PCA significa Análise de Componentes Principais, e é uma técnica de redução de dimensionalidade que é frequentemente utilizada para visualizar dados de alta dimensionalidade em um espaço bidimensional (ou tridimensional).
+
+# Carregando o conjunto de dados Iris
+iris = datasets.load_iris()
+
+# Visualização 2D usando as duas primeiras características
+_, ax = plt.subplots()                                                #plt.subplots(): Cria uma figura e um conjunto de eixos (axes) na figura. Retorna uma tupla com a figura e os eixos.
+scatter = ax.scatter(iris.data[:, 0], iris.data[:, 1], c=iris.target) # ax.scatter(...): Cria um gráfico de dispersão nos eixos (ax). Aqui, iris.data[:, 0] representa os valores da primeira característica (comprimento da sépala) e assim indo.
+ax.set(xlabel=iris.feature_names[0], ylabel=iris.feature_names[1])    #ax.set(...): Define rótulos para os eixos x e y.
+_ = ax.legend(scatter.legend_elements()[0], iris.target_names, loc="lower right", title="Classes") #ax.legend(...): Adiciona uma legenda ao gráfico de dispersão. scatter.legend_elements()[0]: Obtém os elementos necessários para a legenda.
+
+# Aplicando o algoritmo K-Means
+kmeans = KMeans(n_clusters=3, random_state=42) #Cria uma estancia do objeto KMEANS N_cluster define quantos vai ter Random_state a aletoriedade.
+kmeans.fit(iris.data)                          #justa o modelo K-Means aos dados do conjunto de dados Iris. iris.data: Os dados do conjunto de dados Iris, que são as características das amostras.
+
+# Obtendo os rótulos dos clusters
+labels = kmeans.labels_                        #Você está recuperando os rótulos dos clusters para cada amostra no conjunto de dados Iris. Depois de ajustar o modelo K-Means
+
+# Visualizando os resultados do K-Means no gráfico de dispersão 2D
+ax.scatter(iris.data[:, 0], iris.data[:, 1], c=labels, cmap='viridis', marker='X', s=100, edgecolor='red', label='K-Means Clusters')
+
+
+
+# Mostra com todas junção feitas
+plt.show()
+
+
