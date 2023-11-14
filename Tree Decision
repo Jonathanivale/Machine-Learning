@@ -1,0 +1,266 @@
+#Importação de bibliotecas.
+import numpy as np
+import pydotplus
+from IPython.display import Image
+from sklearn import tree
+
+
+pip install graphviz
+
+
+
+import numpy as np
+
+# Dados de entrada (features)
+x = np.array([
+    ['Sol'    , 85, 85],
+    ['Sol'    , 80, 90],
+    ['Nublado', 83, 86],
+    ['Chuva'  , 70, 96],
+    ['Chuva'  , 68, 80],
+    ['Chuva'  , 65, 70],
+    ['Nublado', 64, 65],
+    ['Sol'    , 72, 95],
+    ['Sol'    , 69, 70],
+    ['Chuva'  , 75, 80],
+    ['Sol'    , 75, 70],
+    ['Nublado', 72, 90],
+    ['Nublado', 81, 75],
+    ['Chuva'  , 71, 91]
+], dtype='object')
+
+# Dados de saída (rótulos)
+y = np.array(['Não', 'Não', 'Sim', 'Sim', 'Sim', 'Não', 'Sim', 'Não', 'Sim', 'Sim', 'Sim', 'Sim', 'Sim', 'Não']).reshape(-1, 1)
+
+# Imprimindo as dimensões dos dados
+print(x.shape, y.shape)
+
+
+# Retorna a classe mais frequente no vetor de rótulos y
+def most_frequent_class(y):
+    classes, class_counts = np.unique(y, return_counts=True)
+    return classes[np.argmax(class_counts)]
+
+# Calcula a entropia do vetor de rótulos y
+def entropy(y):
+    if len(y) == 0: 
+        return 0.0
+
+    _, class_counts = np.unique(y, return_counts=True)
+    proportions = class_counts / y.shape[0]
+    return -np.sum(proportions * np.log2(proportions))
+
+# Calcula o índice de Gini do vetor de rótulos y
+def gini(y):
+    if len(y) == 0:
+        return 0.0
+
+    _, class_counts = np.unique(y, return_counts=True)
+    proportions = class_counts / y.shape[0]
+    return 1.0 - np.sum(proportions**2)
+
+
+
+
+
+
+
+class Node():
+    def __init__(self, parent=None):
+        # Inicializa um nó na árvore de decisão
+        self.parent = parent
+        self.left_child = None   # Ramo à esquerda
+        self.right_child = None  # Ramo à direita
+        self.col_index = None    # Índice da coluna (feature) usada para fazer a divisão
+        self.value = None        # Valor usado para fazer a divisão
+        self.is_leaf = True       # Indica se o nó é uma folha
+        self.output = None       # Saída prevista se o nó for uma folha
+
+class DecisionTree():
+    def __init__(self, criterion=gini, max_depth=None, min_samples_split=2, is_classification=True):
+        # Inicializa o modelo de árvore de decisão
+        self.criterion = criterion
+        self.max_depth = np.inf if max_depth is None else max_depth
+        self.min_samples_split = min_samples_split
+        self.is_classification = is_classification
+        self.root = Node()  # O nó raiz da árvore
+
+    def fit(self, x, y):
+        # Treina a árvore de decisão com os dados de entrada x e rótulos y
+        self.__build_tree(self.root, x, y)
+
+    def predict(self, x):
+        # Faz previsões para os dados de entrada x
+        return np.array([self.__compute_output(sample, self.root) for sample in x])
+
+    def __build_tree(self, parent_node, x, y, depth=0):
+        # Função recursiva para construir a árvore de decisão
+        parent_node.col_index, parent_node.value, best_gain = self.__find_best_split(x, y)
+        
+        # Critérios de parada: melhor ganho é 0 ou atingiu a profundidade máxima
+        if best_gain == 0.0 or depth > self.max_depth: 
+            parent_node.output = most_frequent_class(y) if self.is_classification else np.mean(y)
+            return
+
+        left_child = Node(parent=parent_node)
+        right_child = Node(parent=parent_node)
+        parent_node.is_leaf = False
+
+        # Divide os dados com base na melhor divisão encontrada
+        x_left, y_left, x_right, y_right = self.__split_data_by_value(x, y, parent_node.col_index, parent_node.value)
+
+        # Constrói os ramos esquerdo e direito da árvore
+        if len(x_left) >= self.min_samples_split:
+            self.__build_tree(left_child, x_left, y_left, depth + 1)
+        else:
+            left_child.output = most_frequent_class(y_left) if self.is_classification else np.mean(y_left)
+
+        if len(x_right) >= self.min_samples_split:
+            self.__build_tree(right_child, x_right, y_right, depth + 1)
+        else:
+            right_child.output = most_frequent_class(y_right) if self.is_classification else np.mean(y_right)
+
+        # Atribui os ramos ao nó pai
+        parent_node.left_child = left_child
+        parent_node.right_child = right_child
+
+    # Métodos auxiliares omitidos por brevidade...
+
+# Observe que você precisará das implementações adequadas para os métodos auxiliares __find_best_split,
+# __split_data_by_value, __compute_output, most_frequent_class, gini, etc.
+
+
+
+    def __find_best_split(self, x, y):
+        best_gain, best_col, best_value = 0.0, None, None
+        current_impurity = self.criterion(y)
+        
+        n_atts = x.shape[1]
+        for att in range(n_atts):
+            att_values = np.unique(x[:, att])
+            for value in att_values:
+                _, y_left, _, y_right = self.__split_data_by_value(x, y, att, value)
+                
+                left_impurity = self.criterion(y_left)
+                right_impurity = self.criterion(y_right)
+                p = len(y_left) / y.shape[0]
+
+                gain = current_impurity - (p * left_impurity + (1 - p) * right_impurity)
+                if gain > best_gain:
+                    best_gain = gain
+                    best_col = att
+                    best_value = value
+
+        return best_col, best_value, best_gain
+
+    def __split_data_by_value(self, x, y, col_index, value):
+        left_mask = x[:, col_index] < value
+        right_mask = np.invert(left_mask)
+        return x[left_mask], y[left_mask], x[right_mask], y[right_mask]
+
+    def __compute_output(self, x, node):
+        if node.is_leaf: return node.output
+        
+        is_discrete = isinstance(node.value, str)
+        right_condition = x[node.col_index] == node.value if is_discrete else x[node.col_index] > node.value
+        return self.__compute_output(x, node.right_child if right_condition else node.left_child)
+
+    def __str__(self):
+        return self.__print_tree(self.root)
+
+    def __print_tree(self, node, indent=''):
+        if node.is_leaf: return 'Leaf: y = {}\n'.format(node.output)
+
+        is_discrete = isinstance(node.value, str)
+        right_condition = 'x[{}] {} {} | '.format(node.col_index, '==' if is_discrete else '>=', node.value)
+        left_condition = indent
+        left_condition += 'x[{}] {} {} | '.format(node.col_index, '!=' if is_discrete else '< ', node.value)        
+        
+        summary = right_condition + self.__print_tree(node.right_child, indent + ' '*len(right_condition))
+        summary += left_condition + self.__print_tree(node.left_child, indent + ' '*len(right_condition))
+                
+        return summary
+
+
+
+
+
+
+x = np.array([
+            ['Sol'    , 85, 85, 'Não'],
+            ['Sol'    , 80, 90, 'Sim'],
+            ['Nublado', 83, 86, 'Não'],
+            ['Chuva'  , 70, 96, 'Não'],
+            ['Chuva'  , 68, 80, 'Não'],
+            ['Chuva'  , 65, 70, 'Sim'],
+            ['Nublado', 64, 65, 'Sim'],
+            ['Sol'    , 72, 95, 'Não'],
+            ['Sol'    , 69, 70, 'Não'],
+            ['Chuva'  , 75, 80, 'Não'],
+            ['Sol'    , 75, 70, 'Sim'],
+            ['Nublado', 72, 90, 'Sim'],
+            ['Nublado', 81, 75, 'Não'],
+            ['Chuva'  , 71, 91, 'Sim']
+            ], dtype='object')
+
+y = np.array(['Não', 'Não', 'Sim', 'Sim', 'Sim', 'Não', 'Sim', 'Não', 'Sim', 'Sim', 'Sim', 'Sim', 'Sim', 'Não']).reshape(-1, 1)
+
+dt = DecisionTree()
+dt.fit(x, y)
+
+print(dt)
+
+
+
+
+
+#Comparação com o Scikit-learn
+x = np.array([
+            [0, 85, 85, 0],
+            [0, 80, 90, 1],
+            [1, 83, 86, 0],
+            [2, 70, 96, 0],
+            [2, 68, 80, 0],
+            [2, 65, 70, 1],
+            [1, 64, 65, 1],
+            [0, 72, 95, 0],
+            [0, 69, 70, 0],
+            [2, 75, 80, 0],
+            [0, 75, 70, 1],
+            [1, 72, 90, 1],
+            [1, 81, 75, 0],
+            [2, 71, 91, 1]
+            ])
+
+y = np.array([0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0]).reshape(-1, 1)
+
+clf = tree.DecisionTreeClassifier(criterion='gini')
+clf.fit(x, y)
+
+
+
+
+
+
+
+# Exporta a representação da árvore de decisão no formato DOT, 
+#O DOT é um formato de arquivo de texto usado para descrever grafos. Neste caso, descreve a estrutura da árvore de decisão, incluindo características, divisões e rótulos de classe.
+
+dot_data = tree.export_graphviz(clf, out_file=None, 
+                                feature_names=['Tempo', 'Temperatura', 'Umidade', 'Vento'], 
+                                class_names=['Não', 'Sim'],
+                                filled=True, rounded=True,
+                                special_characters=True)
+
+# Converte os dados DOT em um gráfico usando a biblioteca pydotplus
+graph = pydotplus.graph_from_dot_data(dot_data)
+
+# Cria uma imagem (PNG) a partir do gráfico
+# Essa imagem será usada para visualizar a árvore de decisão
+Image(graph.create_png())
+
+
+
+
+
+
